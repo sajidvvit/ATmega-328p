@@ -1,0 +1,236 @@
+#include<avr/io.h>
+#define FOSC 16000000
+#define BAUD 9600
+#define MYUBRR FOSC/16/BAUD-1
+
+void keyin();
+void manual();
+
+char M;
+
+void USART_Init(unsigned int ubrr)     //initialization function of USART
+{
+  UBRR0H=(unsigned char)(ubrr>>8);
+  UBRR0L=(unsigned char)ubrr;
+  UCSR0B=(1<<RXEN0)|(1<<TXEN0);
+  UCSR0C=(1<<USBS0)|(3<<UCSZ00);  
+} 
+
+void USART_Transmit(char b)    //USART transmit function
+{
+  while(!(UCSR0A & (1<<UDRE0)));
+  UDR0=b;
+}
+
+void tr_str(char *st)
+{
+  int i;
+  for(i=0; st[i]!='\0';i++)  
+  {
+    USART_Transmit(st[i]);
+    _delay_ms(20);
+  }
+}
+
+unsigned char USART_Reciever(void)     //USART receiver function
+{
+  while(!(UCSR0A & (1<<RXC0)));
+  return UDR0;
+}
+
+void USART_Flush()      //USART function to clear the data register
+{
+unsigned char dummy;
+while (UCSR0A & (1<<RXC0)) dummy = UDR0;
+}
+
+void dcmotor(int OP)     //pwm
+{
+  DDRD= (1<<PD6)|(1<<PD4);
+  PORTD&=~(1<<4);
+  TCCR0A= (1<<COM0A1)|(1<<WGM01)|(1<<WGM00);
+  TCCR0B=(1<<CS00);
+  OCR0A=((255*OP)/100);
+}
+
+void dcmotor_m()    //dc motor function
+{
+  int i,duty=0; char dat[]="Enter the duty cycle:"; char d[4]; 
+  tr_str(dat); USART_Flush();
+  for(i=0;i<3;i++)
+  {
+    d[i]=USART_Reciever(); USART_Transmit(d[i]);
+  } d[i]='\0';
+  USART_Transmit('\r'); USART_Transmit('\n'); USART_Flush();
+  for(i=0;d[i]!='\0';i++) duty=((duty*10)+(d[i]-'0'));
+  dcmotor(duty);
+}
+
+void st_clk(int n)    //stepper motor- clockwise
+{
+  int i;
+  for(i=0;i<(n/7.2);i++)
+  {
+    PORTB=(1<<2); _delay_ms(200); PORTB=~(1<<2);
+    PORTB=(1<<3); _delay_ms(200); PORTB=~(1<<3);
+    PORTB=(1<<4); _delay_ms(200); PORTB=~(1<<4);
+    PORTB=(1<<5); _delay_ms(200); PORTB=~(1<<5);        
+  } 
+}
+
+void st_anti(int n1)    //stepper motor- anti-clockwise
+{
+  int i;
+  for(i=0;i<(n1/7.2);i++)
+  {
+    PORTB=(1<<5); _delay_ms(200); PORTB&=~(1<<5);
+    PORTB=(1<<4); _delay_ms(200); PORTB&=~(1<<4);
+    PORTB=(1<<3); _delay_ms(200); PORTB&=~(1<<3);
+    PORTB=(1<<2); _delay_ms(200); PORTB&=~(1<<2);        
+  } 
+}
+
+void stepper()    //stepper motor function
+{
+  int j,num=0;  char c[4]; char data[]="Enter the angle:";
+  USART_Flush(); tr_str(data); USART_Flush();
+  for(j=0;j<3;j++)
+  {
+    c[j]=USART_Reciever(); USART_Transmit(c[j]);
+  } c[j]='\0';
+  USART_Flush(); USART_Transmit('\r'); USART_Transmit('\n'); USART_Flush();
+  for(j=0;c[j]!='\0';j++) num=((num*10)+(c[j]-'0'));
+  st_clk(num); 
+}
+
+void irsensor()   //Infrared sensor
+{
+  int i; 
+  char sen[]="Object is detected!\r\n";
+  char obj[]="Object is not detected!!\r\n";
+  char st1[]="Stepper motor rotates for 90 deg in clockwise direction\r\n";
+  char st2[]="Stepper motor rotates for 90 deg in anti-clockwise direction\r\n";
+  if((PIND&(1<<5))!=0)
+  {
+    tr_str(sen); tr_str(st1); st_clk(90);
+  }
+  else
+  {
+     tr_str(obj); tr_str(st2); st_anti(90);
+  }
+}    
+
+void gassensor()     //gas sensor
+{
+  int g; char gas[]="Gas=", str[5];
+  char gg[]="Threshold of Gas=4%\r\n";
+  char g1[]="Gas is more than the threshold value\r\n";
+  char g2[]="Alarming the user..\r\n";
+  DDRD|=(1<<7); tr_str(gg); 
+  ADMUX=0b01000001; ADCSRA=0b11000111;
+  while((ADCSRA&(1<<4))==0);
+  g=ADC; g=((g*100)/1024);
+  sprintf(str,"%d",g);
+  tr_str(gas); tr_str(str);
+  USART_Transmit('%'); USART_Transmit('\r');  USART_Transmit('\n');
+  if(g>4)
+  {
+    tr_str(g2);
+    PORTD|=(1<<7);
+  }
+}
+
+void temp()      //temperature sensor
+{
+  int g,t;  char tem[]="Temperature=", str1[5];
+  char th[]="Threshold temperature is=29 C\r\n";
+  char inf[]="Temperature is more than or equal to the threshold\r\n";
+  char dc_inf[]="DC motor runs at 90% speed\r\n";
+  char inf1[]="Temperature is less than the threshold\r\n";
+  char dc_inf1[]="DC motor runs at 50% speed\r\n";
+  tr_str(th); tr_str(tem);
+  ADMUX=0b01000000; ADCSRA=0b11000111;
+  while((ADCSRA&(1<<4))==0);
+  g=ADC; g=((g*500)/1024);
+  sprintf(str1,"%d",g);
+  tr_str(str1); USART_Transmit(' '); USART_Transmit('C');
+  USART_Transmit('\r');  USART_Transmit('\n');
+  if(g>=29) 
+  {
+    tr_str(inf); tr_str(dc_inf); 
+    dcmotor(90);
+  }
+  else
+  {
+    tr_str(inf1); tr_str(dc_inf1); 
+    dcmotor(50);
+  }
+}
+
+int main()
+{
+  int i;
+  USART_Init(MYUBRR);
+  DDRB=(0XF<<2); PORTB=~(0Xf<<2);
+  while(1)
+  {
+    keyin();
+  }
+}
+
+void manual()     //manual mode function
+{
+  int i; char d; char e[]="Thank you!"; char data[]="d for dc motor/ s for stepper motor:";
+  char data1[]="Dc motor is selected\r\n"; char data2[]="No motor is selected!\r\n";
+  char data3[]="Stepper motor is selected\r\n"; char da[]="Do you want to continue any motor?:y or n:"; 
+  begin2: USART_Flush(); tr_str(data); USART_Flush();
+  d=USART_Reciever(); USART_Transmit(d);
+  USART_Transmit('\r'); USART_Transmit('\n'); USART_Flush();
+  switch(d)
+  {
+    case 'd': tr_str(data1); dcmotor_m(); _delay_ms(500); break;
+    case 's': tr_str(data3); stepper(); break;
+    default:  tr_str(data2);
+  } USART_Flush(); tr_str(da);
+  USART_Flush(); M=USART_Reciever(); USART_Transmit(M); USART_Flush();
+  USART_Transmit('\r'); USART_Transmit('\n'); USART_Flush();
+  if(M=='y') goto begin2;
+  if(M=='q') 
+  {
+    OCR0A=0; PORTD&= ~(1<<7);
+  }
+}
+
+void keyin()
+{
+  char e[]="Thank you!"; char M1;
+  char data[]="Enter the mode- M for manual, A for auto:"; char data1[]="It is Manual mode..\r\n";
+  char data2[]="No mode is selected!\r\n";  char data3[]="It is Auto mode..\r\n";
+  char da[]="Do you want to continue the mode?:y or n:";
+  begin1:USART_Flush();  tr_str(data);
+  USART_Flush(); M=USART_Reciever(); USART_Transmit(M);
+  USART_Flush(); USART_Transmit('\r'); USART_Transmit('\n');
+    switch(M)
+    {
+      case 'M': USART_Flush(); tr_str(data1); manual(); break;
+      case 'A': USART_Flush(); tr_str(data3); temp(); gassensor(); irsensor();
+                                              break;
+      case 'q': OCR0A=0; PORTD&= ~(1<<7); break;
+      default: USART_Flush(); tr_str(data2);
+    }
+    tr_str(da); USART_Flush(); M1=USART_Reciever(); USART_Transmit(M1); USART_Flush();
+    USART_Transmit('\r'); USART_Transmit('\n');
+    if(M1=='y') goto begin1;
+    else if(M1=='q') 
+    {
+      OCR0A=0; PORTD&= ~(1<<7);
+    }
+    else if(M1=='n')
+    {
+      tr_str(e); exit(0);
+    }
+    else 
+    {
+      tr_str(data2); tr_str(e); exit(0);
+    }
+}

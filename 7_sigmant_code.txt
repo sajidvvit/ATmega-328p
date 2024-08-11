@@ -1,0 +1,29 @@
+unsigned char seg[]={0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7d,0x07,0x7f,0x6f};
+int i,j,k,l;
+int main(void)
+{
+  DDRD=0xFF;
+  while(1)
+  {
+    for(i=0;i<10; i++)
+    {
+      PORTD=seg[i];
+      _delay_ms(500);
+    }
+    for(j=0;j<10; j++)
+    {
+      PORTD=seg[j];
+      _delay_ms(500);
+    }
+    for(k=0;k<10; k++)
+    {
+      PORTD=seg[k];
+      _delay_ms(500);
+    }
+    for(l=0;l<10; l++)
+    {
+      PORTD=seg[i];
+      _delay_ms(500);
+    }
+  }
+}

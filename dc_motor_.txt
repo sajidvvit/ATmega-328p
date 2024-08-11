@@ -1,0 +1,15 @@
+int main()
+{
+  DDRD=0x03;
+  while(1)
+  {
+    PORTD|=(1<<0);//(dc motor in clock wise)
+    _delay_ms(1000);
+    PORTD&=~(1<<0);
+    _delay_ms(1000);
+     PORTD|=(1<<1);//(dc motor in anti clockwise)
+    _delay_ms(1000);
+    PORTD&=~(1<<1);
+    _delay_ms(1000);
+  }
+}

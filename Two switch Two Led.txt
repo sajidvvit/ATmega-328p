@@ -5,13 +5,13 @@ int main() {
   DDRD |= (1 << 7);    // Set pin 7 as output
 
   while (1) {
-    if ((PIND & (1 << 2)) ) {
+    if ((PIND & (1 << 2))==0 ) {
       PORTD |= (1 << 6);  // Turn on LED on pin 6
     } else {
       PORTD &= ~(1 << 6);  // Turn off LED on pin 6
     }
 
-    if ((PIND & (1 << 3)) ) {
+    if ((PIND & (1 << 3))==0 ) {
       PORTD |= (1 << 7);  // Turn on LED on pin 7
     } else {
       PORTD &= ~(1 << 7);  // Turn off LED on pin 7

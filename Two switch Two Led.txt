@@ -1,0 +1,21 @@
+int main() {
+  DDRD &= ~(1 << 2);   // Set pin 2 as input
+  DDRD &= ~(1 << 3);   // Set pin 3 as input
+  DDRD |= (1 << 6);    // Set pin 6 as output
+  DDRD |= (1 << 7);    // Set pin 7 as output
+
+  while (1) {
+    if ((PIND & (1 << 2)) ) {
+      PORTD |= (1 << 6);  // Turn on LED on pin 6
+    } else {
+      PORTD &= ~(1 << 6);  // Turn off LED on pin 6
+    }
+
+    if ((PIND & (1 << 3)) ) {
+      PORTD |= (1 << 7);  // Turn on LED on pin 7
+    } else {
+      PORTD &= ~(1 << 7);  // Turn off LED on pin 7
+    }
+  }
+  return 0;
+}

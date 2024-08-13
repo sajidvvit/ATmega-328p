@@ -1,0 +1,159 @@
+unsigned char keypad();
+void lcdcmd(unsigned char c)
+{
+  unsigned char temp;
+  PORTB &= (~(1 << 0)); //rs=0
+  temp = c & 0xF0;
+  temp = temp >> 4;
+  PORTB &= ~(0x0F << 2);
+  PORTB |= temp << 2;
+  PORTB |= (1 << 1); //en=1
+  _delay_ms(50);
+  PORTB &= (~(1 << 1)); //en=0
+  _delay_ms(50);
+  temp = c & 0x0F;
+  PORTB &= ~(0x0F << 2);
+  PORTB |= temp << 2;
+  PORTB |= (1 << 1); //en=1
+  _delay_ms(50);
+  PORTB &= (~(1 << 1)); //en=0
+  _delay_ms(50);
+}
+void lcddata(unsigned char d)  
+{
+  unsigned char temp;
+  PORTB |= (1 << 0); //rs=1
+  temp = d & 0xF0;
+  temp = temp >> 4;
+  PORTB &= ~(0x0F << 2);
+  PORTB |= temp << 2;
+  PORTB |= (1 << 1); //en=1
+  _delay_ms(50);
+  PORTB &= (~(1 << 1)); //en=0
+  _delay_ms(50);
+  temp = d & 0x0F;
+  PORTB &= ~(0x0F << 2);
+  PORTB |= temp << 2;
+  PORTB |= (1 << 1); //en=1
+  _delay_ms(50);
+  PORTB &= (~(1 << 1)); //en=0
+  _delay_ms(50);
+}
+void lcd_init()
+{
+  DDRB |= 0X3F;
+  //DDRB |= (1<<EN);
+  //PORTD &= ~(1<<EN);
+  lcdcmd(0x33);
+  lcdcmd(0x32);
+  lcdcmd(0x28);
+  lcdcmd(0x01);
+  lcdcmd(0x0E);
+  lcdcmd(0x01);
+  //lcdcmd(0x0c);
+  //lcdcmd(0x06);
+  _delay_ms(2);
+}
+int main(void)
+{
+  unsigned char x;
+  DDRD = 0X0F; //LSD-ROWS(O/P)-MSB-COLUMNS(I/P)
+  lcd_init();
+  while (1)
+  {
+    PORTD = 0xF0;
+    if (PIND != 0xF0)
+    {
+      x = keypad();
+      lcddata(x);
+    }
+    //break;
+  }
+  return 0;
+}
+unsigned char keypad()
+{
+  PORTD = 0b11111110;//row-0
+  if ((PIND & (1 << 4)) == 0)
+  {
+    _delay_ms(3);
+    return '7';
+  }
+  else if ((PIND & (1 << 5)) == 0)
+  {
+    _delay_ms(3);
+    return '8';
+  }
+  else if ((PIND & (1 << 6)) == 0)
+  {
+    _delay_ms(3);
+    return '9';
+  }
+  else if ((PIND & (1 << 7)) == 0)
+  {
+    _delay_ms(3);
+    return '/';
+  }
+  PORTD = 0b11111101;//row-1
+  if ((PIND & (1 << 4)) == 0)
+  {
+    _delay_ms(3);
+    return '4';
+  }
+  else if ((PIND & (1 << 5)) == 0)
+  {
+    _delay_ms(3);
+    return '5';
+  }
+  else if ((PIND & (1 << 6)) == 0)
+  {
+    _delay_ms(3);
+    return '6';
+  }
+  else if ((PIND & (1 << 7)) == 0)
+  {
+    _delay_ms(3);
+    return '*';
+  }
+  PORTD = 0b11111011;//row-2
+  if ((PIND & (1 << 4)) == 0)
+  {
+    _delay_ms(3);
+    return '1';
+  }
+  else if ((PIND & (1 << 5)) == 0)
+  {
+    _delay_ms(3);
+    return '2';
+  }
+  else if ((PIND & (1 << 6)) == 0)
+  {
+    _delay_ms(3);
+    return '3';
+  }
+  else if ((PIND & (1 << 7)) == 0) {
+    _delay_ms(3);
+    return '-';
+  }
+  PORTD = 0b11110111;
+  if ((PIND & (1 << 4)) == 0)
+  {
+    _delay_ms(3);
+    return 'C';
+  }
+  else if ((PIND & (1 << 5)) == 0)
+  {
+    _delay_ms(3);
+    return '0';
+  }
+  else if ((PIND & (1 << 6)) == 0)
+  {
+    _delay_ms(3);
+    return '=';
+  }
+  else if ((PIND & (1 <<7)) == 0)
+  {
+    _delay_ms(3);
+    return '+';
+  }
+}
